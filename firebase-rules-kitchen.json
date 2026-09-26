@@ -1,11 +1,8 @@
 {
-  "rules": {
-    "kitchenHomes": {
-      "$homeCode": {
-        ".read": "auth != null",
-        ".write": "auth != null",
-        ".validate": "$homeCode.matches(/^[0-9]{6}$/)"
-      }
+  "kitchenHomes": {
+    "$homeCode": {
+      ".read": "auth != null && $homeCode.matches(/^[0-9]{6}$/)",
+      ".write": "auth != null && $homeCode.matches(/^[0-9]{6}$/)"
     }
   }
 }
