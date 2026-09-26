@@ -14,6 +14,11 @@ header{position:sticky;top:0;z-index:20;background:#f6f4eff2;border-bottom:1px s
 .top{max-width:1000px;margin:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 h1{font-size:22px;margin:0;flex:1}.btn{border:1px solid var(--line);background:#fff;border-radius:13px;padding:10px 13px;font-weight:800;color:var(--ink)}
 .btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}.btn.danger{color:var(--danger)}
+.syncpill{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 11px;font-size:13px;font-weight:900}
+.syncdot{width:9px;height:9px;border-radius:50%;background:#9b9b9b}.syncdot.on{background:#2f9e59}.syncdot.busy{background:#d49b22}.syncdot.err{background:#c74343}
+.codebox{font-size:30px;font-weight:1000;letter-spacing:7px;text-align:center;background:var(--soft);border:1px dashed var(--accent);border-radius:16px;padding:15px;margin:12px 0;direction:ltr}
+.syncActions{display:grid;grid-template-columns:1fr 1fr;gap:9px}.syncActions .btn{min-height:48px}
+.syncHint{color:var(--muted);line-height:1.8;font-size:14px}
 main{max-width:1000px;margin:auto;padding:14px}.tabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .tab{border:1px solid var(--line);background:#fff;border-radius:16px;padding:14px;font-weight:900;font-size:18px}.tab.on{background:var(--ink);color:#fff}
 .importbar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
@@ -39,7 +44,7 @@ main{max-width:1000px;margin:auto;padding:14px}.tabs{display:grid;grid-template-
 </style>
 </head>
 <body>
-<header><div class="top"><h1>🛒 مشتريات المطبخ</h1><button class="btn" id="addBtn">＋ إضافة مادة</button><button class="btn primary" id="openShoppingBtn">قائمة التسوق</button></div></header>
+<header><div class="top"><h1>🛒 مشتريات المطبخ</h1><button class="syncpill" id="syncBtn"><span class="syncdot" id="syncDot"></span><span id="syncText">محلي فقط</span></button><button class="btn" id="addBtn">＋ إضافة مادة</button><button class="btn primary" id="openShoppingBtn">قائمة التسوق</button></div></header>
 <main>
 <div class="tabs"><button class="tab on" data-page="daily">⚡ مستعجل / يومي</button><button class="tab" data-page="weekly">📅 أسبوعي</button></div>
 <div class="importbar"><button class="btn primary" id="pasteImportBtn">📥 لصق قائمة من واتساب</button><button class="btn" id="manualImportBtn">إدخال رسالة يدويًا</button></div>
@@ -49,6 +54,20 @@ main{max-width:1000px;margin:auto;padding:14px}.tabs{display:grid;grid-template-
 <div class="list" id="list"></div>
 <div class="actions"><div class="actionGrid"><button class="btn primary" id="sendBtn">إرسال للزوج</button><button class="btn" id="copyBtn">نسخ الرسالة</button></div></div>
 </main>
+
+<section class="panel" id="syncPanel"><div class="panelbar"><h2>المزامنة بين الجهازين</h2><button class="btn" data-close="syncPanel">رجوع</button></div><div class="form">
+<div class="notice">الجهازان لا يحتاجان أن يكونا في نفس المكان أو على نفس شبكة الواي فاي. يكفي الإنترنت وأن يدخلا نفس رمز المنزل.</div>
+<div id="syncStatusCard" class="syncHint">هذا الجهاز يعمل محليًا فقط حاليًا.</div>
+<div id="homeCodeBox" class="codebox" style="display:none"></div>
+<div class="syncActions">
+<button class="btn primary" id="createHomeBtn">إنشاء منزل مشترك</button>
+<button class="btn" id="shareHomeBtn" style="display:none">مشاركة الرمز</button>
+</div>
+<label>الانضمام إلى منزل موجود</label>
+<input id="joinCode" inputmode="numeric" maxlength="6" placeholder="أدخل الرمز المكوّن من 6 أرقام" style="direction:ltr;text-align:center;font-size:22px;letter-spacing:5px">
+<div class="rowBtns"><button class="btn primary" id="joinHomeBtn">ربط هذا الجهاز</button><button class="btn danger" id="leaveHomeBtn" style="display:none">فصل هذا الجهاز</button></div>
+<p class="syncHint">عند إنشاء منزل لأول مرة تُرفع قائمتك الحالية. عند الانضمام إلى منزل موجود تصبح بيانات المنزل المشتركة هي القائمة الظاهرة على هذا الجهاز. واتساب والنسخ اليدوي سيبقيان متاحين.</p>
+</div></section>
 
 <section class="panel" id="editor"><div class="panelbar"><h2 id="editorTitle">إضافة مادة</h2><button class="btn" data-close="editor">رجوع</button></div><div class="form">
 <label>اسم المادة</label><input id="editName"><label>النوع</label><select id="editCat"></select><label>أو نوع جديد</label><input id="newCat">
@@ -66,7 +85,14 @@ main{max-width:1000px;margin:auto;padding:14px}.tabs{display:grid;grid-template-
 <div class="shopTop"><button class="btn" id="hideDoneBtn">إخفاء المكتمل</button><button class="btn" id="resetDoneBtn">إلغاء علامات الإنجاز</button><button class="btn danger" id="clearShoppingBtn">مسح قائمة التسوق</button></div>
 <div id="shoppingMeta" class="notice"></div><div class="shopList" id="shopList"></div></div></section>
 
-<script>
+<script type="module">
+import {initializeApp} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {getAuth,signInAnonymously,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {getDatabase,ref,set,get,onValue} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const firebaseConfig={apiKey:"AIzaSyBd36jTJ1Z-SrhyXk_jXOcVBjPvVFGfpek",authDomain:"couple-battleship.firebaseapp.com",databaseURL:"https://couple-battleship-default-rtdb.firebaseio.com",projectId:"couple-battleship",storageBucket:"couple-battleship.firebasestorage.app",messagingSenderId:"1030235226722",appId:"1:1030235226722:web:111d78d035944a17a3873b"};
+const fbApp=initializeApp(firebaseConfig),auth=getAuth(fbApp),db=getDatabase(fbApp);
+
 const catalog = [["سكر", "أساسيات وتوابل"], ["ملح", "أساسيات وتوابل"], ["قهوة سعودية", "قهوة وشاي"], ["هيل", "أساسيات وتوابل"], ["اريغانو", "أساسيات وتوابل"], ["كركم", "أساسيات وتوابل"], ["بهارات", "أساسيات وتوابل"], ["دبس رمان", "صلصات وإضافات"], ["فلفل اسود", "أساسيات وتوابل"], ["ورق غار", "أساسيات وتوابل"], ["نعناع مطحون", "أساسيات وتوابل"], ["زنجبيل مطحون", "أساسيات وتوابل"], ["ثوم مطحون", "أساسيات وتوابل"], ["بهارات شاورما", "أساسيات وتوابل"], ["سكر دايت", "أساسيات وتوابل"], ["ماجي", "أساسيات وتوابل"], ["خس", "خضار وفواكه"], ["ليمون", "خضار وفواكه"], ["خيار", "خضار وفواكه"], ["برتقال", "خضار وفواكه"], ["تفاح", "خضار وفواكه"], ["بطيخ", "خضار وفواكه"], ["عنب", "خضار وفواكه"], ["جرجير", "خضار وفواكه"], ["فلفل اخضر", "خضار وفواكه"], ["كريمة طبخ", "ألبان وأجبان"], ["جبة سايله كرافت", "ألبان وأجبان"], ["جبنة سايلة مراعي", "ألبان وأجبان"], ["جبنة مربعات", "ألبان وأجبان"], ["لبنه", "ألبان وأجبان"], ["موزلريلا", "ألبان وأجبان"], ["لبن", "ألبان وأجبان"], ["زبادي", "ألبان وأجبان"], ["زبادي يوناني", "ألبان وأجبان"], ["قشطة تاج", "ألبان وأجبان"], ["قشطة بوك", "ألبان وأجبان"], ["جبنة زيت", "ألبان وأجبان"], ["توست", "خبز ومخبوزات"], ["خبز ابيض", "خبز ومخبوزات"], ["خبز بر", "خبز ومخبوزات"], ["صامولي", "خبز ومخبوزات"], ["تورتيلا", "خبز ومخبوزات"], ["طحين كويتي", "دقيق ومخبوزات"], ["طحيب ابيض", "دقيق ومخبوزات"], ["طحين بر", "دقيق ومخبوزات"], ["صلصة بيتزا", "صلصات وإضافات"], ["صلصة كتشب", "صلصات وإضافات"], ["خل", "صلصات وإضافات"], ["تونة", "معلبات"], ["فول", "معلبات"], ["حمص", "معلبات"], ["زيتون اسود", "معلبات"], ["زيتون اخضر", "معلبات"], ["زيتون مقطع اسود", "معلبات"], ["زيتون مقطع اخضر", "معلبات"], ["رانش", "صلصات وإضافات"], ["باربيكيو", "صلصات وإضافات"], ["صلصلة جبنة", "صلصات وإضافات"], ["عصير ليمون", "صلصات وإضافات"], ["شاهي ابو جبل", "قهوة وشاي"], ["شاهي كبوس", "قهوة وشاي"], ["قهوة تركية", "قهوة وشاي"], ["عصير الربيع", "مشروبات"], ["عصير فواكة مشكة الربيع", "مشروبات"], ["بيبسي دايت صغير", "مشروبات"], ["بيبسي دايت كبير", "مشروبات"], ["كولا دايت صغير", "مشروبات"], ["كولا دايت كبير", "مشروبات"], ["كينزا", "مشروبات"], ["بيرة تفاح اخضر", "مشروبات"], ["دجاج صدور", "لحوم ومجمدات"], ["دجاج كامل", "لحوم ومجمدات"], ["لحم مفروم", "لحوم ومجمدات"], ["دجاج مفروم", "لحوم ومجمدات"], ["ناجت", "لحوم ومجمدات"], ["نقانق", "لحوم ومجمدات"], ["برغر لحم", "لحوم ومجمدات"], ["برغر دجاج", "لحوم ومجمدات"], ["كباب لحم", "لحوم ومجمدات"], ["تمر", "حلويات وسناك"], ["كيك", "حلويات وسناك"], ["كرييكرز", "حلويات وسناك"], ["فشار زبدة مايكرويف", "حلويات وسناك"], ["داوني", "تنظيف وغسيل"], ["فيري", "تنظيف وغسيل"], ["كروليكس", "تنظيف وغسيل"], ["صابون يد", "تنظيف وغسيل"], ["منظف ارضيات", "تنظيف وغسيل"], ["صابون بودة غسيل ملابس", "تنظيف وغسيل"], ["سفنجة", "تنظيف وغسيل"]];
 const defaults=catalog.map((x,i)=>({id:'c'+i,name:x[0],cat:x[1]}));
 function getJSON(k,f){try{const v=localStorage.getItem(k);return v?JSON.parse(v):f}catch(e){return f}}
@@ -75,11 +101,25 @@ let items=getJSON('kt_items_v2',null)||defaults.slice();
 let state=getJSON('kt_state_v2',{daily:{},weekly:{}})||{daily:{},weekly:{}}; if(!state.daily)state.daily={}; if(!state.weekly)state.weekly={};
 let shopping=getJSON('kt_shopping_v2',{type:'',items:[]})||{type:'',items:[]};
 let page='daily',filter='الكل',query='',editingId=null,pendingImport=null,hideDone=false;
+let uid=null,homeCode=localStorage.getItem('kt_home_code')||'',syncUnsub=null,remoteApplying=false,syncTimer=null,syncOnline=false;
 const $=id=>document.getElementById(id);
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 function cats(){return ['الكل',...new Set(items.map(x=>x.cat).filter(Boolean))]}
 function cur(id){if(!state[page][id])state[page][id]={checked:false,qty:''};return state[page][id]}
-function saveAll(){setJSON('kt_items_v2',items);setJSON('kt_state_v2',state);setJSON('kt_shopping_v2',shopping);render();renderShopping()}
+function persistLocal(){setJSON('kt_items_v2',items);setJSON('kt_state_v2',state);setJSON('kt_shopping_v2',shopping)}
+function cloudPayload(){return {items,state,shopping,updatedAt:Date.now(),updatedBy:uid||''}}
+function updateSyncUI(mode=''){const linked=!!homeCode;syncOnline=mode==='online'||(syncOnline&&mode!=='offline'&&mode!=='error');$('syncDot').className='syncdot'+(mode==='busy'?' busy':mode==='error'?' err':syncOnline&&linked?' on':'');$('syncText').textContent=linked?(syncOnline?'متزامن • '+homeCode:'ربط • '+homeCode):'محلي فقط';$('homeCodeBox').style.display=linked?'block':'none';$('homeCodeBox').textContent=linked?homeCode:'';$('shareHomeBtn').style.display=linked?'block':'none';$('leaveHomeBtn').style.display=linked?'block':'none';$('syncStatusCard').textContent=linked?(syncOnline?'متصل الآن. أي تغيير في هذا الجهاز أو الجهاز الآخر سيظهر لحظيًا.':'تم حفظ رمز المنزل، وجارٍ الاتصال بـ Firebase…'):'هذا الجهاز يعمل محليًا فقط حاليًا.'}
+function scheduleCloudSync(){if(!homeCode||!uid||remoteApplying)return;clearTimeout(syncTimer);updateSyncUI('busy');syncTimer=setTimeout(async()=>{try{await set(ref(db,'kitchenHomes/'+homeCode+'/data'),cloudPayload());updateSyncUI('online')}catch(e){console.error(e);updateSyncUI('error')}},220)}
+function saveAll(){persistLocal();render();renderShopping();scheduleCloudSync()}
+function normalizeRemoteData(d){if(!d)return;const remoteItems=Array.isArray(d.items)?d.items:Object.values(d.items||{});if(remoteItems.length)items=remoteItems;if(d.state){state=d.state;if(!state.daily)state.daily={};if(!state.weekly)state.weekly={}}if(d.shopping){shopping=d.shopping;if(!Array.isArray(shopping.items))shopping.items=Object.values(shopping.items||{})}persistLocal();render();renderShopping()}
+function listenHome(){if(syncUnsub){syncUnsub();syncUnsub=null}if(!homeCode||!uid){updateSyncUI('offline');return}updateSyncUI('busy');syncUnsub=onValue(ref(db,'kitchenHomes/'+homeCode+'/data'),snap=>{if(!snap.exists())return;remoteApplying=true;normalizeRemoteData(snap.val());remoteApplying=false;updateSyncUI('online')},err=>{console.error(err);updateSyncUI('error')})}
+function makeHomeCode(){return String(Math.floor(100000+Math.random()*900000))}
+async function createHome(){if(!uid)return alert('الاتصال بـ Firebase لم يجهز بعد. أعد المحاولة بعد لحظة.');let code='';for(let n=0;n<8;n++){const candidate=makeHomeCode();const s=await get(ref(db,'kitchenHomes/'+candidate));if(!s.exists()){code=candidate;break}}if(!code)return alert('تعذر إنشاء رمز جديد. حاول مرة أخرى.');homeCode=code;localStorage.setItem('kt_home_code',homeCode);try{await set(ref(db,'kitchenHomes/'+homeCode),{createdAt:Date.now(),createdBy:uid,data:cloudPayload()});listenHome();updateSyncUI('online');alert('تم إنشاء المنزل المشترك. أدخل نفس الرمز في الجهاز الثاني: '+homeCode)}catch(e){console.error(e);homeCode='';localStorage.removeItem('kt_home_code');updateSyncUI('error');alert('تعذر إنشاء المزامنة. غالبًا تحتاج قواعد Firebase إلى السماح للمستخدم المسجل بالقراءة والكتابة.')}}
+async function joinHome(){if(!uid)return alert('الاتصال بـ Firebase لم يجهز بعد. أعد المحاولة بعد لحظة.');const code=$('joinCode').value.replace(/\D/g,'').slice(0,6);if(code.length!==6)return alert('أدخل رمز المنزل المكوّن من 6 أرقام.');try{const s=await get(ref(db,'kitchenHomes/'+code));if(!s.exists())return alert('لم أجد منزلًا بهذا الرمز.');homeCode=code;localStorage.setItem('kt_home_code',homeCode);const d=s.val()?.data;if(d){remoteApplying=true;normalizeRemoteData(d);remoteApplying=false}listenHome();$('joinCode').value='';updateSyncUI('online');alert('تم ربط هذا الجهاز بالمنزل '+homeCode)}catch(e){console.error(e);updateSyncUI('error');alert('تعذر الانضمام. تحقق من الإنترنت وقواعد Firebase.')}}
+function leaveHome(){if(!homeCode)return;if(!confirm('فصل هذا الجهاز عن المنزل المشترك؟ ستبقى البيانات الحالية محفوظة محليًا ولن يتم حذف المنزل من الجهاز الآخر.'))return;if(syncUnsub){syncUnsub();syncUnsub=null}homeCode='';syncOnline=false;localStorage.removeItem('kt_home_code');updateSyncUI('offline')}
+async function shareHome(){if(!homeCode)return;const t='رمز مزامنة مشتريات المطبخ: '+homeCode+'\nافتح نفس التطبيق ثم المزامنة ← الانضمام إلى منزل موجود.';try{if(navigator.share)await navigator.share({title:'مشتريات المطبخ',text:t});else await copyText(t)}catch(e){}}
+signInAnonymously(auth).catch(e=>{console.error(e);updateSyncUI('error')});
+onAuthStateChanged(auth,u=>{uid=u?.uid||null;if(uid&&homeCode)listenHome();else updateSyncUI('offline')});
 function renderFilters(){const box=$('filters');box.replaceChildren();cats().forEach(c=>{const b=document.createElement('button');b.className='filter'+(filter===c?' on':'');b.textContent=c;b.dataset.filter=c;box.appendChild(b)})}
 function render(){
  renderFilters();document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('on',b.dataset.page===page));$('pageTitle').textContent=page==='daily'?'المستعجل / اليومي':'الأسبوعي';
@@ -103,16 +143,22 @@ function applyImport(mode){
  if(mode==='replace')shopping={type:pendingImport.type||'',items:incoming};
  else{const map=new Map(shopping.items.map(x=>[(x.name+'|'+x.cat).toLowerCase(),x]));incoming.forEach(x=>{const k=(x.name+'|'+x.cat).toLowerCase();if(map.has(k)){const old=map.get(k);old.qty=x.qty||old.qty;old.done=false}else shopping.items.push(x)});if(!shopping.type)shopping.type=pendingImport.type||''}
  pendingImport.items.forEach(x=>{if(!items.some(v=>v.name.trim().toLowerCase()===String(x.name).trim().toLowerCase()))items.push({id:'u'+Date.now()+Math.random().toString(16).slice(2),name:x.name,cat:x.cat||'أخرى'})});
- setJSON('kt_items_v2',items);setJSON('kt_shopping_v2',shopping);$('importChoicePanel').classList.remove('open');$('importPanel').classList.remove('open');render();renderShopping();$('shoppingPanel').classList.add('open');pendingImport=null
+ setJSON('kt_items_v2',items);setJSON('kt_shopping_v2',shopping);scheduleCloudSync();$('importChoicePanel').classList.remove('open');$('importPanel').classList.remove('open');render();renderShopping();$('shoppingPanel').classList.add('open');pendingImport=null
 }
 function renderShopping(){const box=$('shopList');box.replaceChildren();const all=shopping.items||[],show=hideDone?all.filter(x=>!x.done):all;$('shoppingMeta').textContent=all.length?`${shopping.type==='daily'?'قائمة مستعجلة / يومية':'قائمة أسبوعية'} — ${all.length} مادة — تم ${all.filter(x=>x.done).length}`:'لا توجد قائمة تسوق مستلمة حاليًا.';if(!show.length){box.innerHTML='<div class="empty">لا توجد مواد للعرض</div>';return}show.forEach(x=>{const r=document.createElement('div');r.className='shopItem'+(x.done?' done':'');r.innerHTML=`<input class="check" type="checkbox" data-done="${esc(x.id)}" ${x.done?'checked':''}><div><div class="name">${esc(x.name)}</div><div class="cat">${esc(x.cat)}</div></div><div class="badge">${x.qty?'العدد: '+esc(x.qty):'العدد: 1'}</div>`;box.appendChild(r)})}
 function openEditor(id=null){editingId=id;const x=id?items.find(v=>v.id===id):null;$('editorTitle').textContent=x?'تعديل المادة':'إضافة مادة';$('editName').value=x?.name||'';$('newCat').value='';const sel=$('editCat');sel.replaceChildren();cats().filter(c=>c!=='الكل').forEach(c=>{const o=document.createElement('option');o.value=c;o.textContent=c;if(x?.cat===c)o.selected=true;sel.appendChild(o)});$('deleteBtn').style.display=x?'block':'none';$('editor').classList.add('open')}
 async function copyText(text){try{await navigator.clipboard.writeText(text);alert('تم النسخ')}catch(e){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();alert('تم النسخ')}}
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{page=b.dataset.page;filter='الكل';query='';$('search').value='';render()}));
+$('syncBtn').addEventListener('click',()=>{$('syncPanel').classList.add('open');updateSyncUI(syncOnline?'online':'offline')});
+$('createHomeBtn').addEventListener('click',createHome);
+$('joinHomeBtn').addEventListener('click',joinHome);
+$('leaveHomeBtn').addEventListener('click',leaveHome);
+$('shareHomeBtn').addEventListener('click',shareHome);
+$('joinCode').addEventListener('input',e=>{e.target.value=e.target.value.replace(/\D/g,'').slice(0,6)});
 $('filters').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(!b)return;filter=b.dataset.filter;render()});
 $('search').addEventListener('input',e=>{query=e.target.value;render()});$('clearBtn').addEventListener('click',()=>{query='';$('search').value='';render()});
 $('list').addEventListener('change',e=>{if(e.target.matches('[data-check]')){cur(e.target.dataset.check).checked=e.target.checked;saveAll()}else if(e.target.matches('[data-qty]')){cur(e.target.dataset.qty).qty=e.target.value;saveAll()}});
-$('list').addEventListener('input',e=>{if(e.target.matches('[data-qty]')){cur(e.target.dataset.qty).qty=e.target.value;setJSON('kt_state_v2',state)}});
+$('list').addEventListener('input',e=>{if(e.target.matches('[data-qty]')){cur(e.target.dataset.qty).qty=e.target.value;setJSON('kt_state_v2',state);scheduleCloudSync()}});
 $('list').addEventListener('click',e=>{const b=e.target.closest('[data-edit]');if(b)openEditor(b.dataset.edit)});
 $('addBtn').addEventListener('click',()=>openEditor());document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).classList.remove('open')));
 $('saveBtn').addEventListener('click',()=>{const name=$('editName').value.trim();if(!name)return alert('اكتب اسم المادة');const cat=$('newCat').value.trim()||$('editCat').value||'أخرى';if(editingId){const x=items.find(v=>v.id===editingId);if(x){x.name=name;x.cat=cat}}else items.push({id:'u'+Date.now(),name,cat});saveAll();$('editor').classList.remove('open')});
@@ -124,12 +170,12 @@ $('manualImportBtn').addEventListener('click',()=>{$('importText').value='';$('i
 $('pasteImportBtn').addEventListener('click',async()=>{try{const t=await navigator.clipboard.readText();if(!t)throw new Error();prepareImport(t)}catch(e){$('importText').value='';$('importPanel').classList.add('open')}});
 $('analyzeImportBtn').addEventListener('click',()=>prepareImport($('importText').value));$('replaceImportBtn').addEventListener('click',()=>applyImport('replace'));$('mergeImportBtn').addEventListener('click',()=>applyImport('merge'));
 $('openShoppingBtn').addEventListener('click',()=>{renderShopping();$('shoppingPanel').classList.add('open')});
-$('shopList').addEventListener('change',e=>{if(e.target.matches('[data-done]')){const x=shopping.items.find(v=>v.id===e.target.dataset.done);if(x)x.done=e.target.checked;setJSON('kt_shopping_v2',shopping);renderShopping()}});
+$('shopList').addEventListener('change',e=>{if(e.target.matches('[data-done]')){const x=shopping.items.find(v=>v.id===e.target.dataset.done);if(x)x.done=e.target.checked;setJSON('kt_shopping_v2',shopping);renderShopping();scheduleCloudSync()}});
 $('hideDoneBtn').addEventListener('click',()=>{hideDone=!hideDone;$('hideDoneBtn').textContent=hideDone?'إظهار المكتمل':'إخفاء المكتمل';renderShopping()});
-$('resetDoneBtn').addEventListener('click',()=>{shopping.items.forEach(x=>x.done=false);setJSON('kt_shopping_v2',shopping);renderShopping()});
-$('clearShoppingBtn').addEventListener('click',()=>{if(confirm('مسح قائمة التسوق الحالية؟')){shopping={type:'',items:[]};setJSON('kt_shopping_v2',shopping);renderShopping()}});
+$('resetDoneBtn').addEventListener('click',()=>{shopping.items.forEach(x=>x.done=false);setJSON('kt_shopping_v2',shopping);renderShopping();scheduleCloudSync()});
+$('clearShoppingBtn').addEventListener('click',()=>{if(confirm('مسح قائمة التسوق الحالية؟')){shopping={type:'',items:[]};setJSON('kt_shopping_v2',shopping);renderShopping();scheduleCloudSync()}});
 (function receiveShareTarget(){const p=new URLSearchParams(location.search),shared=(p.get('text')||'')+'\n'+(p.get('url')||'');if(shared.includes('KITCHEN64:'))setTimeout(()=>prepareImport(shared),250)})();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
-render();renderShopping();
+render();renderShopping();updateSyncUI('offline');
 </script>
 </body></html>
